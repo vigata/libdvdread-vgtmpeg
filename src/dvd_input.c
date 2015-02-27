@@ -301,7 +301,7 @@ static int file_close(dvd_input_t dev)
 /**
  * Setup read functions with either libdvdcss or minimal DVD access.
  */
-int dvdinput_setup(void)
+int dvdinput_setup(dvd_reader_logf extlog)
 {
   void *dvdcss_library = NULL;
 

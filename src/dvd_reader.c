@@ -422,7 +422,7 @@ int loglevel )
   /* Try to open DVD using stream_cb functions */
   if( stream != NULL && stream_cb != NULL )
   {
-    have_css = dvdinput_setup();
+    have_css = dvdinput_setup(extlog);
     return DVDOpenImageFile( NULL, stream, stream_cb, have_css, extlog );
   }
 
@@ -434,7 +434,7 @@ int loglevel )
     goto DVDOpen_error;
 
   /* Try to open libdvdcss or fall back to standard functions */
-  have_css = dvdinput_setup();
+  have_css = dvdinput_setup(extlog);
 
 #if defined(_WIN32) || defined(__OS2__)
   /* Strip off the trailing \ if it is not a drive */

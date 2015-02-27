@@ -1,3 +1,9 @@
+commit 4c9d23ed9c07f8358bda49ac330a0eacc5d23a7c
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Fri Feb 27 02:55:46 2015 -0800
+
+    fixing logging from dvd_input
+
 commit bf3d102fb083a1a43aabd564663ad3da1daa8fd6
 Author: Alberto Vigata <alberto@nelalabs.com>
 Date:   Fri Feb 27 02:40:11 2015 -0800
