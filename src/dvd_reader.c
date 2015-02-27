@@ -389,11 +389,14 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
                                     void *stream,
                                     dvd_reader_stream_cb *stream_cb )
 {
-	return DVDOpenEx(ppath, stream, stream_cb, NULL, 0);
+	return DVDOpenEx2(ppath, stream, stream_cb, NULL, 0);
 }
 
+dvd_reader_t *DVDOpenEx( const char *ppath, dvd_reader_logf extlog, int loglevel ) {
+    return DVDOpenEx2( ppath, 0, 0, extlog, loglevel );
+}
 
-dvd_reader_t *DVDOpenEx( const char *ppath, 
+dvd_reader_t *DVDOpenEx2( const char *ppath, 
 void *stream,
 dvd_reader_stream_cb *stream_cb, 
 dvd_reader_logf extlog, 

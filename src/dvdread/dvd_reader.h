@@ -129,9 +129,10 @@ typedef void ( *dvd_reader_logf)(const char *);
 void DVDReadLog(const dvd_reader_t *, const char *fmt, ...);
 
 
-dvd_reader_t *DVDOpenEx( const char *, void *stream,
+dvd_reader_t *DVDOpenEx2( const char *, void *stream,
                                     dvd_reader_stream_cb *stream_cb,  dvd_reader_logf log, int loglevel );
 
+dvd_reader_t *DVDOpenEx( const char *, dvd_reader_logf log, int loglevel );
 
 /**
  * Closes and cleans up the DVD reader object.

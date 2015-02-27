@@ -1,3 +1,9 @@
+commit 2deff76fe7d38c63acf3a5cf2723cd9741a444b1
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Thu Feb 26 22:37:19 2015 -0800
+
+    updated to dvdread 5.0.2
+
 commit 2609ec5f9d34123b1ed3c908d9a114942d953f06
 Author: Alberto Vigata <alberto@nelalabs.com>
 Date:   Thu Feb 26 16:00:52 2015 -0800
