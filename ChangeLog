@@ -1,3 +1,27 @@
+commit 572cca1701f2fea7a1680bdbf2b7c9b8f6577ecb
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Fri Feb 27 01:45:52 2015 -0800
+
+    fixing write after deallocation
+
+commit 969535de27847bdeb9532a98c4cd151304406535
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Fri Feb 27 01:20:59 2015 -0800
+
+    check for null on DVDReadLog
+
+commit 77c9828ea73310dd9b0eff6a35a5c16efc0b8aec
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Thu Feb 26 23:00:03 2015 -0800
+
+    moving msvc files up one dir
+
+commit 6d9082c54a3c840c86a4027a54c7b03061710f16
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Thu Feb 26 22:49:19 2015 -0800
+
+    added DVDOpenEx2 API to maintain compatibility with old software
+
 commit 2deff76fe7d38c63acf3a5cf2723cd9741a444b1
 Author: Alberto Vigata <alberto@nelalabs.com>
 Date:   Thu Feb 26 22:37:19 2015 -0800

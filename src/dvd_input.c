@@ -27,6 +27,8 @@
 
 #include "dvdread/dvd_reader.h"      /* DVD_VIDEO_LB_LEN */
 #include "dvd_input.h"
+#include <errno.h>
+#include <string.h>
 
 
 /* The function pointers that is the exported interface of this file. */
@@ -194,7 +196,7 @@ static dvd_input_t file_open(const char *target,
   dev->fd = open(target, O_RDONLY | O_BINARY);
 #endif
   if(dev->fd < 0) {
-    perror("libdvdread: Could not open input");
+	_extlog( extlog, "libdvdread: Could not open input: %s", strerror(errno) );
     free(dev);
     return NULL;
   }
