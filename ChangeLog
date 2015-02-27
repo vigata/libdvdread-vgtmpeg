@@ -1,3 +1,9 @@
+commit 4932214e2c353e67414d305d0925b72f112c6600
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Fri Feb 27 02:36:40 2015 -0800
+
+    moving error message to log system
+
 commit 572cca1701f2fea7a1680bdbf2b7c9b8f6577ecb
 Author: Alberto Vigata <alberto@nelalabs.com>
 Date:   Fri Feb 27 01:45:52 2015 -0800

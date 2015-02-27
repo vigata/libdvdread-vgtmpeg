@@ -196,7 +196,7 @@ static dvd_input_t file_open(const char *target,
   dev->fd = open(target, O_RDONLY | O_BINARY);
 #endif
   if(dev->fd < 0) {
-	_extlog( extlog, "libdvdread: Could not open input: %s", strerror(errno) );
+	_extlog( extlog, "libdvdread: Could not open input(%s): %s\n", target, strerror(errno) );
     free(dev);
     return NULL;
   }
