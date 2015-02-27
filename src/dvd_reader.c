@@ -140,6 +140,9 @@ void _extlog(dvd_reader_logf extlog, const char *fmt, ... ) {
 }
 void DVDReadLog( const dvd_reader_t *dvdr, const char *fmt, ...)
 {
+    if(!dvdr)
+        return;
+
     char buf[1024];
     va_list vl;
     va_start(vl, fmt);
