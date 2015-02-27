@@ -1121,7 +1121,6 @@ void ifoFree_TT_SRPT(ifo_handle_t *ifofile) {
   if(ifofile->tt_srpt) {
     free(ifofile->tt_srpt->title);
     free(ifofile->tt_srpt);
-    ifofile->tt_srpt->title = NULL;
     ifofile->tt_srpt = NULL;
   }
 }
