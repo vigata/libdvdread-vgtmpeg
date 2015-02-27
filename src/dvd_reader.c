@@ -279,7 +279,7 @@ dvd_reader_logf extlog )
   dvd_reader_t *dvd;
   dvd_input_t dev;
 
-  dev = dvdinput_open( location, stream, stream_cb );
+  dev = dvdinput_open( location, stream, stream_cb, extlog );
   if( !dev ) {
     _extlog( extlog,  "libdvdread: Can't open %s for reading\n", location );
     return NULL;
@@ -807,7 +807,7 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
     return NULL;
   }
 
-  dev = dvdinput_open( full_path, NULL, NULL );
+  dev = dvdinput_open( full_path, NULL, NULL, dvd->extlog );
   if( !dev ) {
     DVDReadLog( dvd, "libdvdread:DVDOpenFilePath:dvdinput_open %s failed\n", full_path );
     return NULL;
@@ -918,7 +918,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, int title, int menu )
       return NULL;
     }
 
-    dev = dvdinput_open( full_path, NULL, NULL );
+    dev = dvdinput_open( full_path, NULL, NULL, dvd->extlog );
     if( dev == NULL ) {
       free( dvd_file );
       return NULL;
@@ -951,7 +951,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, int title, int menu )
       }
 
       dvd_file->title_sizes[ i ] = fileinfo.st_size / DVD_VIDEO_LB_LEN;
-      dvd_file->title_devs[ i ] = dvdinput_open( full_path, NULL, NULL );
+      dvd_file->title_devs[ i ] = dvdinput_open( full_path, NULL, NULL, dvd->extlog );
       dvdinput_title( dvd_file->title_devs[ i ], 0 );
       dvd_file->filesize += dvd_file->title_sizes[ i ];
     }

@@ -32,7 +32,7 @@
 
 
 /* The function pointers that is the exported interface of this file. */
-dvd_input_t (*dvdinput_open)  (const char *, void *, dvd_reader_stream_cb *);
+dvd_input_t (*dvdinput_open)  (const char *, void *, dvd_reader_stream_cb *, dvd_reader_logf extlog );
 int         (*dvdinput_close) (dvd_input_t);
 int         (*dvdinput_seek)  (dvd_input_t, int);
 int         (*dvdinput_title) (dvd_input_t, int);
@@ -82,6 +82,9 @@ struct dvd_input_s {
 
   /* dummy file input */
   int fd;
+
+  /* an external logging function */
+  dvd_reader_logf extlog;
 };
 
 
@@ -89,7 +92,8 @@ struct dvd_input_s {
  * initialize and open a DVD (device or file or stream_cb)
  */
 static dvd_input_t css_open(const char *target,
-                            void *stream, dvd_reader_stream_cb *stream_cb)
+                            void *stream, dvd_reader_stream_cb *stream_cb,
+                            dvd_reader_logf extlog )
 {
   dvd_input_t dev;
 
@@ -176,7 +180,8 @@ static int css_close(dvd_input_t dev)
  */
 static dvd_input_t file_open(const char *target,
                              void *stream UNUSED,
-                             dvd_reader_stream_cb *stream_cb UNUSED)
+                             dvd_reader_stream_cb *stream_cb UNUSED, 
+                             dvd_reader_logf extlog )
 {
   dvd_input_t dev;
 
@@ -201,6 +206,7 @@ static dvd_input_t file_open(const char *target,
     return NULL;
   }
 
+  dev->extlog = extlog;
   return dev;
 }
 

@@ -1,3 +1,9 @@
+commit bf3d102fb083a1a43aabd564663ad3da1daa8fd6
+Author: Alberto Vigata <alberto@nelalabs.com>
+Date:   Fri Feb 27 02:40:11 2015 -0800
+
+    add file name when failing to open input
+
 commit 4932214e2c353e67414d305d0925b72f112c6600
 Author: Alberto Vigata <alberto@nelalabs.com>
 Date:   Fri Feb 27 02:36:40 2015 -0800
