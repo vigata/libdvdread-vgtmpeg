@@ -43,7 +43,7 @@
 /**
  * The current version.
  */
-#define DVDREAD_VERSION 50000
+#define DVDREAD_VERSION 904
 
 /**
  * The length of one Logical Block of a DVD.
@@ -68,6 +68,8 @@ typedef struct dvd_reader_s dvd_reader_t;
  * Opaque type for a file read handle, much like a normal fd or FILE *.
  */
 typedef struct dvd_file_s dvd_file_t;
+
+dvd_reader_t *DVDFileGetDVDHandle( dvd_file_t * );
 
 struct dvd_reader_stream_cb
 {
@@ -115,6 +117,21 @@ typedef struct {
  */
 dvd_reader_t *DVDOpen( const char * );
 dvd_reader_t *DVDOpenStream( void *, dvd_reader_stream_cb * );
+
+
+/**
+ * The following is an extended version that adds a logger to log messages
+ */
+typedef void ( *dvd_reader_logf)(const char *);
+#define DVDREAD_LOGLEVEL_NORMAL 5
+#define DVDREAD_LOGLEVEL_VERBOSE 5
+
+void DVDReadLog(const dvd_reader_t *, const char *fmt, ...);
+
+
+dvd_reader_t *DVDOpenEx( const char *, void *stream,
+                                    dvd_reader_stream_cb *stream_cb,  dvd_reader_logf log, int loglevel );
+
 
 /**
  * Closes and cleans up the DVD reader object.

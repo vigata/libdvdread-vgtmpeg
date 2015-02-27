@@ -33,6 +33,7 @@
 #include <limits.h>         /* PATH_MAX */
 #include <dirent.h>         /* opendir, readdir */
 #include <ctype.h>          /* isalpha */
+#include <stdarg.h>
 
 /* misc win32 helpers */
 #ifdef WIN32
@@ -97,6 +98,9 @@ struct dvd_reader_s {
   /* Filesystem cache */
   int udfcache_level; /* 0 - turned off, 1 - on */
   void *udfcache;
+
+  /* logging function */
+  dvd_reader_logf extlog;
 };
 
 #define TITLES_MAX 9
@@ -119,6 +123,38 @@ struct dvd_file_s {
   /* Calculated at open-time, size in blocks. */
   ssize_t filesize;
 };
+
+void _extlog(dvd_reader_logf extlog, const char *fmt, ... ) {
+    char buf[1024];
+    va_list vl;
+    va_start(vl, fmt);
+    vsprintf (buf, fmt, vl );
+
+    if(extlog) {
+    	extlog(buf);
+    } else {
+    	fputs(buf, stderr);
+    }
+
+    va_end(vl);
+}
+void DVDReadLog( const dvd_reader_t *dvdr, const char *fmt, ...)
+{
+    char buf[1024];
+    va_list vl;
+    va_start(vl, fmt);
+    vsprintf (buf, fmt, vl );
+
+    _extlog(dvdr->extlog, buf);
+
+    va_end(vl);
+
+
+}
+
+dvd_reader_t *DVDFileGetDVDHandle( dvd_file_t *file ) {
+    return file->dvd;
+}
 
 int InternalUDFReadBlocksRaw( const dvd_reader_t *device, uint32_t lb_number,
                       size_t block_count, unsigned char *data,
@@ -173,9 +209,9 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
   if(nokeys_str != NULL)
     return 0;
 
-  fprintf( stderr, "\n" );
-  fprintf( stderr, "libdvdread: Attempting to retrieve all CSS keys\n" );
-  fprintf( stderr, "libdvdread: This can take a _long_ time, "
+  DVDReadLog( dvd, "\n" );
+  DVDReadLog( dvd, "libdvdread: Attempting to retrieve all CSS keys\n" );
+  DVDReadLog( dvd, "libdvdread: This can take a _long_ time, "
            "please be patient\n\n" );
   gettimeofday(&all_s, NULL);
 
@@ -189,13 +225,13 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
     start = UDFFindFile( dvd, filename, &len );
     if( start != 0 && len != 0 ) {
       /* Perform CSS key cracking for this title. */
-      fprintf( stderr, "libdvdread: Get key for %s at 0x%08x\n",
+      DVDReadLog( dvd, "libdvdread: Get key for %s at 0x%08x\n",
                filename, start );
       if( dvdinput_title( dvd->dev, (int)start ) < 0 ) {
-        fprintf( stderr, "libdvdread: Error cracking CSS key for %s (0x%08x)\n", filename, start);
+        DVDReadLog( dvd, "libdvdread: Error cracking CSS key for %s (0x%08x)\n", filename, start);
       }
       gettimeofday( &t_e, NULL );
-      fprintf( stderr, "libdvdread: Elapsed time %ld\n",
+      DVDReadLog( dvd, "libdvdread: Elapsed time %ld\n",
                (long int) t_e.tv_sec - t_s.tv_sec );
     }
 
@@ -207,20 +243,20 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
     if( start == 0 || len == 0 ) break;
 
     /* Perform CSS key cracking for this title. */
-    fprintf( stderr, "libdvdread: Get key for %s at 0x%08x\n",
+    DVDReadLog( dvd, "libdvdread: Get key for %s at 0x%08x\n",
              filename, start );
     if( dvdinput_title( dvd->dev, (int)start ) < 0 ) {
-      fprintf( stderr, "libdvdread: Error cracking CSS key for %s (0x%08x)!!\n", filename, start);
+      DVDReadLog( dvd, "libdvdread: Error cracking CSS key for %s (0x%08x)!!\n", filename, start);
     }
     gettimeofday( &t_e, NULL );
-    fprintf( stderr, "libdvdread: Elapsed time %ld\n",
+    DVDReadLog( dvd, "libdvdread: Elapsed time %ld\n",
              (long int) t_e.tv_sec - t_s.tv_sec );
   }
   title--;
 
-  fprintf( stderr, "libdvdread: Found %d VTS's\n", title );
+  DVDReadLog( dvd, "libdvdread: Found %d VTS's\n", title );
   gettimeofday(&all_e, NULL);
-  fprintf( stderr, "libdvdread: Elapsed time %ld\n",
+  DVDReadLog( dvd, "libdvdread: Elapsed time %ld\n",
            (long int) all_e.tv_sec - all_s.tv_sec );
 
   return 0;
@@ -234,14 +270,15 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 static dvd_reader_t *DVDOpenImageFile( const char *location,
                                        void *stream,
                                        dvd_reader_stream_cb *stream_cb,
-                                       int have_css )
+                                       int have_css,
+dvd_reader_logf extlog )
 {
   dvd_reader_t *dvd;
   dvd_input_t dev;
 
   dev = dvdinput_open( location, stream, stream_cb );
   if( !dev ) {
-    fprintf( stderr, "libdvdread: Can't open %s for reading\n", location );
+    _extlog( extlog,  "libdvdread: Can't open %s for reading\n", location );
     return NULL;
   }
 
@@ -257,6 +294,7 @@ static dvd_reader_t *DVDOpenImageFile( const char *location,
 
   dvd->udfcache_level = DEFAULT_UDF_CACHE_LEVEL;
   dvd->udfcache = NULL;
+  dvd->extlog = extlog;
 
   if( have_css ) {
     /* Only if DVDCSS_METHOD = title, a bit if it's disc or if
@@ -270,7 +308,7 @@ static dvd_reader_t *DVDOpenImageFile( const char *location,
   return dvd;
 }
 
-static dvd_reader_t *DVDOpenPath( const char *path_root )
+static dvd_reader_t *DVDOpenPath( const char *path_root, dvd_reader_logf extlog )
 {
   dvd_reader_t *dvd;
 
@@ -279,6 +317,7 @@ static dvd_reader_t *DVDOpenPath( const char *path_root )
   dvd->isImageFile = 0;
   dvd->dev = 0;
   dvd->path_root = strdup( path_root );
+  dvd->extlog = extlog;
   if(!dvd->path_root) {
     free(dvd);
     return NULL;
@@ -350,11 +389,25 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
                                     void *stream,
                                     dvd_reader_stream_cb *stream_cb )
 {
+	return DVDOpenEx(ppath, stream, stream_cb, NULL, 0);
+}
+
+
+dvd_reader_t *DVDOpenEx( const char *ppath, 
+void *stream,
+dvd_reader_stream_cb *stream_cb, 
+dvd_reader_logf extlog, 
+int loglevel )
+{
   struct stat fileinfo;
   int ret, have_css, retval, cdir = -1;
   dvd_reader_t *ret_val = NULL;
   char *dev_name = NULL;
   char *path = NULL, *new_path = NULL, *path_copy = NULL;
+  
+  if(loglevel) {
+      _extlog( extlog, "DVDOpenEx start\n");
+  }
 
 #if defined(_WIN32) || defined(__OS2__)
       int len;
@@ -364,7 +417,7 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
   if( stream != NULL && stream_cb != NULL )
   {
     have_css = dvdinput_setup();
-    return DVDOpenImageFile( NULL, stream, stream_cb, have_css );
+    return DVDOpenImageFile( NULL, stream, stream_cb, have_css, extlog );
   }
 
   if( ppath == NULL )
@@ -394,13 +447,13 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
 
     /* maybe "host:port" url? try opening it with acCeSS library */
     if( strchr(path,':') ) {
-                    ret_val = DVDOpenImageFile( path, NULL, NULL, have_css );
+                    ret_val = DVDOpenImageFile( path, NULL, NULL, have_css, extlog );
                     free(path);
             return ret_val;
     }
 
     /* If we can't stat the file, give up */
-    fprintf( stderr, "libdvdread: Can't stat %s\n", path );
+    _extlog( extlog, "libdvdread: Can't stat %s\n", path );
     perror("");
     goto DVDOpen_error;
   }
@@ -423,7 +476,7 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
 #endif
     if(!dev_name)
         goto DVDOpen_error;
-    dvd = DVDOpenImageFile( dev_name, NULL, NULL, have_css );
+    dvd = DVDOpenImageFile( dev_name, NULL, NULL, have_css, extlog );
     free( dev_name );
     free(path);
     return dvd;
@@ -509,12 +562,12 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
         for (i=0; i<r; i++) {
             if (!strcmp(path_copy, s[i].f_mntonname)) {
                 dev_name = bsd_block2char(s[i].f_mntfromname);
-                fprintf( stderr,
+                _extlog( extlog,
                         "libdvdread: Attempting to use device %s"
                         " mounted on %s for CSS authentication\n",
                         dev_name,
                         s[i].f_mntonname);
-                auth_drive = DVDOpenImageFile( dev_name, NULL, NULL, have_css );
+                auth_drive = DVDOpenImageFile( dev_name, NULL, NULL, have_css, extlog  );
                 break;
             }
         }
@@ -522,12 +575,12 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
 #elif defined(SYS_BSD)
     if( ( fe = getfsfile( path_copy ) ) ) {
       dev_name = bsd_block2char( fe->fs_spec );
-      fprintf( stderr,
+      _extlog( extlog,
                "libdvdread: Attempting to use device %s"
                " mounted on %s for CSS authentication\n",
                dev_name,
                fe->fs_file );
-      auth_drive = DVDOpenImageFile( dev_name, NULL, NULL, have_css );
+      auth_drive = DVDOpenImageFile( dev_name, NULL, NULL, have_css, extlog  );
     }
 #elif defined(__sun)
     mntfile = fopen( MNTTAB, "r" );
@@ -538,12 +591,12 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
       while( ( res = getmntent( mntfile, &mp ) ) != -1 ) {
         if( res == 0 && !strcmp( mp.mnt_mountp, path_copy ) ) {
           dev_name = sun_block2char( mp.mnt_special );
-          fprintf( stderr,
+          _extlog( extlog,
                    "libdvdread: Attempting to use device %s"
                    " mounted on %s for CSS authentication\n",
                    dev_name,
                    mp.mnt_mountp );
-          auth_drive = DVDOpenImageFile( dev_name, NULL, NULL, have_css );
+          auth_drive = DVDOpenImageFile( dev_name, NULL, NULL, have_css, extlog  );
           break;
         }
       }
@@ -556,12 +609,12 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
 
       while( ( me = getmntent( mntfile ) ) ) {
         if( !strcmp( me->mnt_dir, path_copy ) ) {
-          fprintf( stderr,
+          _extlog( extlog,
                    "libdvdread: Attempting to use device %s"
                    " mounted on %s for CSS authentication\n",
                    me->mnt_fsname,
                    me->mnt_dir );
-          auth_drive = DVDOpenImageFile( me->mnt_fsname, NULL, NULL, have_css );
+          auth_drive = DVDOpenImageFile( me->mnt_fsname, NULL, NULL, have_css, extlog  );
           dev_name = strdup(me->mnt_fsname);
           break;
         }
@@ -575,19 +628,19 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
         ( !path[2] ||
           ((path[2] == '\\' || path[2] == '/') && !path[3])))
 #endif
-    auth_drive = DVDOpenImageFile( path, NULL, NULL, have_css );
+    auth_drive = DVDOpenImageFile( path, NULL, NULL, have_css, extlog  );
 #endif
 
 #if !defined(_WIN32) && !defined(__OS2__)
     if( !dev_name ) {
-      fprintf( stderr, "libdvdread: Couldn't find device name.\n" );
+      _extlog( extlog, "libdvdread: Couldn't find device name.\n" );
     } else if( !auth_drive ) {
-      fprintf( stderr, "libdvdread: Device %s inaccessible, "
+      _extlog( extlog, "libdvdread: Device %s inaccessible, "
                "CSS authentication not available.\n", dev_name );
     }
 #else
     if( !auth_drive ) {
-        fprintf( stderr, "libdvdread: Device %s inaccessible, "
+        _extlog( extlog, "libdvdread: Device %s inaccessible, "
                  "CSS authentication not available.\n", path );
     }
 #endif
@@ -607,14 +660,14 @@ static dvd_reader_t *DVDOpenCommon( const char *ppath,
     /**
      * Otherwise, we now try to open the directory tree instead.
      */
-    ret_val = DVDOpenPath( path );
+    ret_val = DVDOpenPath( path, extlog );
       free( path );
       return ret_val;
   }
 
 DVDOpen_error:
   /* If it's none of the above, screw it. */
-  fprintf( stderr, "libdvdread: Could not open %s\n", path );
+  _extlog( extlog, "libdvdread: Could not open %s\n", path );
   free( path );
   free( path_copy );
   if ( cdir >= 0 )
@@ -654,13 +707,13 @@ static dvd_file_t *DVDOpenFileUDF( dvd_reader_t *dvd, char *filename )
 
   start = UDFFindFile( dvd, filename, &len );
   if( !start ) {
-    fprintf( stderr, "libdvdread:DVDOpenFileUDF:UDFFindFile %s failed\n", filename );
+    DVDReadLog( dvd, "libdvdread:DVDOpenFileUDF:UDFFindFile %s failed\n", filename );
     return NULL;
   }
 
   dvd_file = malloc( sizeof( dvd_file_t ) );
   if( !dvd_file ) {
-    fprintf( stderr, "libdvdread:DVDOpenFileUDF:malloc failed\n" );
+    DVDReadLog( dvd, "libdvdread:DVDOpenFileUDF:malloc failed\n" );
     return NULL;
   }
   dvd_file->dvd = dvd;
@@ -744,19 +797,19 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
 
   /* Get the full path of the file. */
   if( !findDVDFile( dvd, filename, full_path ) ) {
-    fprintf( stderr, "libdvdread:DVDOpenFilePath:findDVDFile %s failed\n", filename );
+    DVDReadLog( dvd, "libdvdread:DVDOpenFilePath:findDVDFile %s failed\n", filename );
     return NULL;
   }
 
   dev = dvdinput_open( full_path, NULL, NULL );
   if( !dev ) {
-    fprintf( stderr, "libdvdread:DVDOpenFilePath:dvdinput_open %s failed\n", full_path );
+    DVDReadLog( dvd, "libdvdread:DVDOpenFilePath:dvdinput_open %s failed\n", full_path );
     return NULL;
   }
 
   dvd_file = malloc( sizeof( dvd_file_t ) );
   if( !dvd_file ) {
-    fprintf( stderr, "libdvdread:DVDOpenFilePath:dvd_file malloc failed\n" );
+    DVDReadLog( dvd, "libdvdread:DVDOpenFilePath:dvd_file malloc failed\n" );
     dvdinput_close(dev);
     return NULL;
   }
@@ -768,7 +821,7 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
   dvd_file->filesize = 0;
 
   if( stat( full_path, &fileinfo ) < 0 ) {
-    fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
+    DVDReadLog( dvd, "libdvdread: Can't stat() %s.\n", filename );
     free( dvd_file );
     dvdinput_close( dev );
     return NULL;
@@ -821,7 +874,7 @@ static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd, int title, int menu )
   }
   /*
   if( dvdinput_title( dvd_file->dvd->dev, (int)start ) < 0 ) {
-      fprintf( stderr, "libdvdread: Error cracking CSS key for %s\n",
+      DVDReadLog( dvd, "libdvdread: Error cracking CSS key for %s\n",
                filename );
   }
   */
@@ -866,7 +919,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, int title, int menu )
     }
 
     if( stat( full_path, &fileinfo ) < 0 ) {
-      fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
+      DVDReadLog( dvd, "libdvdread: Can't stat() %s.\n", filename );
       dvdinput_close(dev);
       free( dvd_file );
       return NULL;
@@ -887,7 +940,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, int title, int menu )
       }
 
       if( stat( full_path, &fileinfo ) < 0 ) {
-        fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
+        DVDReadLog( dvd, "libdvdread: Can't stat() %s.\n", filename );
         break;
       }
 
@@ -945,7 +998,7 @@ dvd_file_t *DVDOpenFile( dvd_reader_t *dvd, int titlenum,
     }
     break;
   default:
-    fprintf( stderr, "libdvdread: Invalid domain for file open.\n" );
+    DVDReadLog( dvd, "libdvdread: Invalid domain for file open.\n" );
     return NULL;
   }
 
@@ -1039,7 +1092,7 @@ static int DVDFileStatVOBPath( dvd_reader_t *dvd, int title,
     return -1;
 
   if( stat( full_path, &fileinfo ) < 0 ) {
-    fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
+    DVDReadLog( dvd, "libdvdread: Can't stat() %s.\n", filename );
     return -1;
   }
 
@@ -1055,7 +1108,7 @@ static int DVDFileStatVOBPath( dvd_reader_t *dvd, int title,
         break;
 
       if( stat( full_path, &fileinfo ) < 0 ) {
-        fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
+        DVDReadLog( dvd, "libdvdread: Can't stat() %s.\n", filename );
         break;
       }
 
@@ -1120,7 +1173,7 @@ int DVDFileStat( dvd_reader_t *dvd, int titlenum,
 
     break;
   default:
-    fprintf( stderr, "libdvdread: Invalid domain for file stat.\n" );
+    DVDReadLog( dvd, "libdvdread: Invalid domain for file stat.\n" );
     errno = EINVAL;
     return -1;
   }
@@ -1137,7 +1190,7 @@ int DVDFileStat( dvd_reader_t *dvd, int titlenum,
 
     if( findDVDFile( dvd, filename, full_path ) ) {
       if( stat( full_path, &fileinfo ) < 0 )
-        fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
+        DVDReadLog( dvd, "libdvdread: Can't stat() %s.\n", filename );
       else {
         statbuf->size = fileinfo.st_size;
         statbuf->nr_parts = 1;
@@ -1157,13 +1210,13 @@ int InternalUDFReadBlocksRaw( const dvd_reader_t *device, uint32_t lb_number,
   int ret;
 
   if( !device->dev ) {
-    fprintf( stderr, "libdvdread: Fatal error in block read.\n" );
+    DVDReadLog( device, "libdvdread: Fatal error in block read.\n" );
     return 0;
   }
 
   ret = dvdinput_seek( device->dev, (int) lb_number );
   if( ret != (int) lb_number ) {
-    fprintf( stderr, "libdvdread: Can't seek to block %u\n", lb_number );
+    DVDReadLog( device, "libdvdread: Can't seek to block %u\n", lb_number );
     return 0;
   }
 
@@ -1208,7 +1261,7 @@ static int DVDReadBlocksPath( const dvd_file_t *dvd_file, unsigned int offset,
       if( ( offset + block_count ) <= dvd_file->title_sizes[ i ] ) {
         off = dvdinput_seek( dvd_file->title_devs[ i ], (int)offset );
         if( off < 0 || off != (int)offset ) {
-          fprintf( stderr, "libdvdread: Can't seek to block %u\n",
+          DVDReadLog( dvd_file->dvd, "libdvdread: Can't seek to block %u\n",
                    offset );
           return off < 0 ? off : 0;
         }
@@ -1223,7 +1276,7 @@ static int DVDReadBlocksPath( const dvd_file_t *dvd_file, unsigned int offset,
         /* Read part 1 */
         off = dvdinput_seek( dvd_file->title_devs[ i ], (int)offset );
         if( off < 0 || off != (int)offset ) {
-          fprintf( stderr, "libdvdread: Can't seek to block %u\n",
+          DVDReadLog( dvd_file->dvd, "libdvdread: Can't seek to block %u\n",
                    offset );
           return off < 0 ? off : 0;
         }
@@ -1240,7 +1293,7 @@ static int DVDReadBlocksPath( const dvd_file_t *dvd_file, unsigned int offset,
         /* Read part 2 */
         off = dvdinput_seek( dvd_file->title_devs[ i + 1 ], 0 );
         if( off < 0 || off != 0 ) {
-          fprintf( stderr, "libdvdread: Can't seek to block %d\n",
+          DVDReadLog( dvd_file->dvd, "libdvdread: Can't seek to block %d\n",
                    0 );
           return off < 0 ? off : 0;
         }
@@ -1317,7 +1370,7 @@ int DVDFileSeekForce(dvd_file_t *dvd_file, int offset, int force_size)
       force_size = (offset - 1) / DVD_VIDEO_LB_LEN + 1;
     if( dvd_file->filesize < force_size ) {
       dvd_file->filesize = force_size;
-      fprintf(stderr, "libdvdread: Ignored size of file indicated in UDF.\n");
+      DVDReadLog( dvd_file->dvd, "libdvdread: Ignored size of file indicated in UDF.\n");
     }
   }
 
@@ -1346,7 +1399,7 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
 
   secbuf_base = malloc( numsec * DVD_VIDEO_LB_LEN + 2048 );
   if( !secbuf_base ) {
-    fprintf( stderr, "libdvdread: Can't allocate memory "
+    DVDReadLog( dvd_file->dvd, "libdvdread: Can't allocate memory "
              "for file read!\n" );
     return 0;
   }
@@ -1395,7 +1448,7 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 
   vmg_ifo = ifoOpen( dvd, 0 );
   if( !vmg_ifo ) {
-    fprintf( stderr, "libdvdread: DVDDiscId, failed to "
+    DVDReadLog( dvd, "libdvdread: DVDDiscId, failed to "
       "open VMG IFO!\n" );
     return -1;
   }
@@ -1418,7 +1471,7 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 
       if( buffer_base == NULL ) {
           DVDCloseFile( dvd_file );
-          fprintf( stderr, "libdvdread: DVDDiscId, failed to "
+          DVDReadLog( dvd, "libdvdread: DVDDiscId, failed to "
                    "allocate memory for file read!\n" );
           return -1;
       }
@@ -1427,7 +1480,7 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 
       bytes_read = DVDReadBytes( dvd_file, buffer, file_size );
       if( bytes_read != file_size ) {
-          fprintf( stderr, "libdvdread: DVDDiscId read returned %zd bytes"
+          DVDReadLog( dvd, "libdvdread: DVDDiscId read returned %zd bytes"
                    ", wanted %zd\n", bytes_read, file_size );
           DVDCloseFile( dvd_file );
           free( buffer_base );
@@ -1469,7 +1522,7 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
   buffer_base = malloc( DVD_VIDEO_LB_LEN + 2048 );
 
   if( buffer_base == NULL ) {
-    fprintf( stderr, "libdvdread: DVDISOVolumeInfo, failed to "
+    DVDReadLog( dvd, "libdvdread: DVDISOVolumeInfo, failed to "
              "allocate memory for file read!\n" );
     return -1;
   }
@@ -1478,7 +1531,7 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
 
   ret = InternalUDFReadBlocksRaw( dvd, 16, 1, buffer, 0 );
   if( ret != 1 ) {
-    fprintf( stderr, "libdvdread: DVDISOVolumeInfo, failed to "
+    DVDReadLog( dvd, "libdvdread: DVDISOVolumeInfo, failed to "
              "read ISO9660 Primary Volume Descriptor!\n" );
     free( buffer_base );
     return -1;
